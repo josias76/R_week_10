@@ -73,20 +73,18 @@ Ensuite, incorporez ces variables dans le code d'importation des données ci-des
 # Importer le fichier .dta et ajouter les 5 variables de connaissances sur le paludisme
 ir_brut <- 
   read_dta(here("data/NGIR7BFL_mini.DTA"),
-                  col_select = c(
-                    # Informations de base
-                    v006, v007, v009, v010, v012, v013, 
-                    v024, v025, v106, v130, v190,                     
-                    # Littératie et médias
-                    v155, v156, v157, v158, v159, 
-                    
-                    # Fécondité et calendrier de reproduction
-                    v201, v212, v213, v511, v531, 
-                    
-                    # Ajouter les variables de connaissances sur le paludisme identifiées ci-dessous
-                    s1108ba, s1108bb, s1108bc, s1108bd, s1108be 
-                    
-                    ))
+           col_select = c(
+             # Informations de base
+             v006, v007, v009, v010, v012, v013, 
+             v024, v025, v106, v130, v190,                     
+             # Littératie et médias
+             v155, v156, v157, v158, v159, 
+             # Fécondité et calendrier de reproduction
+             v201, v212, v213, v511, v531, 
+             # Variables de connaissances sur le paludisme
+             s1108ba, s1108bc, s1108bd, s1108bf, s1108ai
+           ))
+
 ```
 
 ## Étape 2 : Attribuez des noms de variables
@@ -115,12 +113,13 @@ ir_renomme <-
          age_premier_rapport_sexuel = v531, 
          
          # Renommer les variables de connaissances sur le paludisme
-         palu_gueri = s1108ba,
-         palu_mortel = s1108bb,
-         palu_facile = s1108bc,
-         palu_connait_malade = s1108bd,
-         palu_enfant_faible = s1108be 
+         paludisme_peut_tuer = s1108ba,
+         pas_inquiet_paludisme_facile = s1108bc,
+         connait_personnes_paludisme = s1108bd,
+         seuls_enfants_faibles_meurent = s1108bf,
+         paludisme_peut_etre_gueri = s1108ai
          )
+
 ```
 
 ## Étape 3 : Révéler les valeurs codées
@@ -128,10 +127,12 @@ ir_renomme <-
 Avec la fonction appropriée du package `{haven}`, transformez toutes les variables en facteurs R réguliers.
 
 ```{r}
+
 # Ajouter la fonction pour convertir de données étiquetées en facteurs réguliers
-ir_propre <- ir_renomme %>% 
-  zap_labels() %>%   # supprime labels DHS
-  mutate(across(everything(), as_factor))
+ir_propre <- 
+  ir_renomme %>% 
+  mutate(across(everything(), haven::as_factor))
+
 
   
 ```
@@ -147,6 +148,7 @@ Choisissez votre thème `{ggplot2}` préféré et écrivez le code pour l'appliq
 ```{r}
 # Changer le thème par défaut
 theme_set(theme_minimal(base_size = 13))
+
 ```
 
 ## Histogrammes et boîtes à moustaches pour les distributions continues
@@ -154,22 +156,31 @@ theme_set(theme_minimal(base_size = 13))
 a. Choisissez l'une des variables continues de l'ensemble de données, telles que `age` ou `age_premiere_naissance`. Ensuite, générez un histogramme simple de cette variable. Assurez-vous de fournir le titre, les étiquettes, etc. nécessaires pour mieux communiquer les informations au public.
 
 ```{r}
-# Histogramme simple
-ggplot(ir_propre, aes(x = age)) +
+
+# Histogramme simple en forçant la conversion numérique
+ggplot(ir_propre, aes(x = as.numeric(age))) +
   geom_histogram(binwidth = 2, fill = "steelblue", color = "white") +
   labs(title = "Distribution des âges des répondantes",
-       x = "Âge", y = "Fréquence")
+       x = "Âge (en années)", 
+       y = "Nombre de femmes")
+
+
+
 ```
 
 b. Maintenant, créez une boîte à moustaches pour montrer la distribution de la variable continue que vous avez choisie précédemment. La distribution doit être regroupée par l'une des variables liées aux connaissances sur le paludisme. Incorporez l'esthétique `fill` pour colorer les boîtes. Ajustez également les couleurs, les étiquettes, les titres, etc. comme bon vous semble.
 
 ```{r}
 # Boîte à moustaches comparant les groupes
-ggplot(ir_propre, aes(x = palu_mortel, y = age, fill = palu_mortel)) +
+
+
+ggplot(ir_propre, aes(x = paludisme_peut_tuer, y = age, fill = paludisme_peut_tuer)) +
   geom_boxplot() +
-  labs(title = "Âge selon perception : le paludisme peut entraîner la mort",
-       x = "Perception du paludisme mortel",
-       y = "Âge")
+  labs(title = "Distribution des âges selon la perception que le paludisme peut tuer",
+       x = "Réponse",
+       y = "Âge") +
+  scale_fill_brewer(palette = "Set2")
+
 ```
 
 ## Diagrammes à barres pour les distributions discrètes
@@ -178,31 +189,41 @@ a. Sélectionnez l'une des variables catégorielles de l'ensemble de données. P
 
 ```{r}
 # Diagramme à barres simple
+
 ggplot(ir_propre, aes(x = niveau_education)) +
-  geom_bar(fill = "darkgreen") +
-  labs(title = "Niveau d'éducation des répondantes",
-       x = "Niveau d'éducation", y = "Effectif")
+  geom_bar(fill = "darkorange") +
+  labs(title = "Distribution du niveau d'éducation",
+       x = "Niveau d'éducation",
+       y = "Nombre de femmes")
+
 ```
 
 b. Ensuite, adaptez votre graphique ci-dessus pour créer un diagramme à barres empilées en pourcentage. Pour ce faire, ajoutez l'esthétique `fill` et définissez-la sur une variable de connaissances sur le paludisme de votre choix ; par exemple : `aes(fill = VAR_PALUDISME)`. N'oubliez pas d'ajouter l'argument `position` approprié. Le graphique final devrait comparer comment les réponses à la question de l'enquête sur les connaissances sur le paludisme varient entre les groupes.
 
 ```{r}
 # Diagramme à barres empilées en pourcentage
-ggplot(ir_propre, aes(x = niveau_education, fill = palu_gueri)) +
+
+ggplot(ir_propre, aes(x = niveau_education, fill = paludisme_peut_tuer)) +
   geom_bar(position = "fill") +
   scale_y_continuous(labels = scales::percent) +
-  labs(title = "Connaissances : paludisme peut être guéri",
-       x = "Niveau d'éducation", y = "Pourcentage")
+  labs(title = "Perception du paludisme selon le niveau d'éducation",
+       x = "Niveau d'éducation",
+       y = "Proportion")
+
 ```
 
 c. Enfin, créez un diagramme à barres GROUPÉ avec deux variables catégorielles de votre choix. Ajustez les couleurs, les étiquettes, les titres, etc. comme bon vous semble.
 
 ```{r}
 # Diagramme à barres groupé
-ggplot(ir_propre, aes(x = urbain_rural, fill = palu_connait_malade)) +
+
+ggplot(ir_propre, aes(x = urbain_rural, fill = paludisme_peut_etre_gueri)) +
   geom_bar(position = "dodge") +
-  labs(title = "Connaissances palu selon milieu de résidence",
-       x = "Milieu", y = "Effectif")
+  labs(title = "Réponses : Le paludisme peut être guéri",
+       x = "Lieu de résidence",
+       y = "Nombre de femmes",
+       fill = "Réponse")
+
 ```
 
 # Défi bonus : Diagrammes en donut
@@ -211,13 +232,19 @@ Représentez les données de votre diagramme à barres groupé sous forme de sé
 
 INDICE : La fonction `facet_wrap()` de `{ggplot2}` sera utile.
 ```{r}
+
 ir_propre %>%
-  count(region, palu_mortel) %>%
-  ggplot(aes(x = 2, y = n, fill = palu_mortel)) +
-  geom_col(width = 1) +
+  count(urbain_rural, paludisme_peut_etre_gueri) %>%
+  group_by(urbain_rural) %>%
+  mutate(pct = n / sum(n),
+         pos = cumsum(pct) - pct/2) %>%
+  ggplot(aes(x = 2, y = pct, fill = paludisme_peut_etre_gueri)) +
+  geom_col(width = 1, color = "white") +
   coord_polar(theta = "y") +
-  facet_wrap(~region) +
+  facet_wrap(~urbain_rural) +
+  xlim(0.5, 2.5) +
   theme_void() +
-  labs(title = "Perception du caractère mortel du paludisme par région")
+  labs(title = "Réponses sur la guérison du paludisme (donut par résidence)")
+
 ```
 
